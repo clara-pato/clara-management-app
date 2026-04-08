@@ -1,17 +1,22 @@
 "use server";
 
-import fs from "fs/promises";
-import path from "path";
+import { createClient } from '@supabase/supabase-js';
 
-const DATA_FILE = "/Users/clara/.openclaw/workspace/work-management/data/tasks.json";
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export async function getTasks() {
   try {
-    const data = await fs.readFile(DATA_FILE, "utf-8");
-    const parsed = JSON.parse(data);
-    return parsed.tasks || [];
+    const { data, error } = await supabase
+      .from('tasks')
+      .select('*')
+      .order('created_at', { ascending: false });
+      
+    if (error) throw error;
+    return data || [];
   } catch (err) {
-    console.error("Error reading tasks:", err);
+    console.error("Error fetching tasks:", err);
     return [];
   }
 }
@@ -24,20 +29,20 @@ export async function addTask(formData: FormData) {
   if (!title) return { success: false, error: "Title is required" };
 
   try {
-    const tasks = await getTasks();
     const newTask = {
-      id: `task_${Date.now()}`,
       title,
       description,
-      workstream,
-      status: "backlog", // Default to backlog
-      priority: "medium",
-      assigned_agent: "Clara",
-      last_activity: new Date().toISOString(),
+      status: "backlog",
+      priority: "med",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     };
 
-    tasks.push(newTask);
-    await fs.writeFile(DATA_FILE, JSON.stringify({ tasks }, null, 2), "utf-8");
+    const { error } = await supabase
+      .from('tasks')
+      .insert([newTask]);
+      
+    if (error) throw error;
     return { success: true };
   } catch (err) {
     console.error("Error writing task:", err);
@@ -47,14 +52,15 @@ export async function addTask(formData: FormData) {
 
 export async function updateTaskStatus(id: string, newStatus: string) {
   try {
-    const tasks = await getTasks();
-    const taskIndex = tasks.findIndex((t: any) => t.id === id);
-    if (taskIndex === -1) return { success: false, error: "Task not found" };
+    const { error } = await supabase
+      .from('tasks')
+      .update({ 
+        status: newStatus,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id);
 
-    tasks[taskIndex].status = newStatus;
-    tasks[taskIndex].last_activity = new Date().toISOString();
-
-    await fs.writeFile(DATA_FILE, JSON.stringify({ tasks }, null, 2), "utf-8");
+    if (error) throw error;
     return { success: true };
   } catch (err) {
     console.error("Error updating task:", err);
