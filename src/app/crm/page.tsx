@@ -198,7 +198,7 @@ export default function CRMDashboard() {
         </div>
 
         {/* Mobile List View */}
-        <div className="overflow-auto flex-1 md:hidden p-4 flex flex-col gap-4">
+        <div className="overflow-y-auto flex-1 md:hidden p-4 flex flex-col gap-4 min-h-0">
           {loading ? (
             <div className="h-24 flex items-center justify-center text-muted-foreground">Loading locations...</div>
           ) : filteredLocations.length === 0 ? (
@@ -206,7 +206,7 @@ export default function CRMDashboard() {
           ) : (
             filteredLocations.map((loc) => (
               <Card key={loc.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedLocation(loc)}>
-                <CardContent className="p-4 flex flex-col gap-2">
+                <CardContent className="p-5 flex flex-col gap-3 min-h-[140px] justify-center">
                   <div className="flex justify-between items-start">
                     <span className="font-medium">{loc.address}</span>
                     <Badge variant="secondary" className={`${STATUS_COLORS[loc.status] || "bg-gray-500 text-white"}`}>
@@ -232,7 +232,22 @@ export default function CRMDashboard() {
 
 
       <Sheet open={!!selectedLocation} onOpenChange={(open) => !open && setSelectedLocation(null)}>
-        <SheetContent className="w-[400px] sm:w-[540px] sm:max-w-none overflow-y-auto flex flex-col p-0">
+        <SheetContent 
+          showCloseButton={false} 
+          className="w-full !max-w-full sm:max-w-none sm:w-[540px] h-[100dvh] sm:h-full overflow-y-auto flex flex-col p-0 border-0 bg-[#0B162C] sm:bg-background text-white sm:text-foreground"
+        >
+          {/* Custom Close Button for Mobile (Top Left) */}
+          <div className="sm:hidden sticky top-0 z-50 p-4 bg-[#0B162C]">
+            <Button variant="ghost" size="icon" onClick={() => setSelectedLocation(null)} className="text-white hover:bg-white/20 rounded-full">
+              <X className="w-8 h-8" />
+            </Button>
+          </div>
+          {/* Default Close Button for Desktop (Top Right) */}
+          <div className="hidden sm:block absolute top-4 right-4 z-50">
+            <Button variant="ghost" size="icon" onClick={() => setSelectedLocation(null)}>
+              <X className="w-5 h-5" />
+            </Button>
+          </div>
           {selectedLocation && (
             <LocationDetail
               location={selectedLocation}
@@ -336,9 +351,9 @@ function LocationDetail({ location, onUpdate }: { location: Location, onUpdate: 
 
   return (
     <div className="flex flex-col h-full">
-      <SheetHeader className="p-6 border-b bg-muted/20">
+      <SheetHeader className="p-6 border-b border-white/10 sm:border-b sm:bg-muted/20 text-white sm:text-foreground mt-2 sm:mt-0">
         <SheetTitle className="text-2xl">{location.address}</SheetTitle>
-        <div className="flex items-center gap-2 text-muted-foreground mt-2">
+        <div className="flex items-center gap-2 text-gray-300 sm:text-muted-foreground mt-2">
           <MapPin className="w-4 h-4"  />
           <span>{location.city}</span>
           {location.listing_url && (
@@ -381,22 +396,22 @@ function LocationDetail({ location, onUpdate }: { location: Location, onUpdate: 
         </div>
 
         <div className="grid grid-cols-3 gap-4">
-          <Card>
+          <Card className="bg-white/5 border-white/10 sm:bg-card sm:border-border text-white sm:text-foreground">
             <CardContent className="p-4 flex flex-col gap-1 items-center justify-center text-center">
-              <Ruler className="w-5 h-5 text-muted-foreground mb-1" />
-              <span className="text-xl font-bold">{location.size_sqm} <span className="text-sm font-normal text-muted-foreground">m2</span></span>
+              <Ruler className="w-5 h-5 text-gray-300 sm:text-muted-foreground mb-1" />
+              <span className="text-xl font-bold">{location.size_sqm} <span className="text-sm font-normal text-gray-300 sm:text-muted-foreground">m2</span></span>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="bg-white/5 border-white/10 sm:bg-card sm:border-border text-white sm:text-foreground">
             <CardContent className="p-4 flex flex-col gap-1 items-center justify-center text-center">
-              <Euro className="w-5 h-5 text-muted-foreground mb-1" />
+              <Euro className="w-5 h-5 text-gray-300 sm:text-muted-foreground mb-1" />
               <span className="text-xl font-bold">{location.asking_rent}</span>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="bg-white/5 border-white/10 sm:bg-card sm:border-border text-white sm:text-foreground">
             <CardContent className="p-4 flex flex-col gap-1 items-center justify-center text-center">
-              <Building className="w-5 h-5 text-muted-foreground mb-1" />
-              <span className="text-xl font-bold">{location.ceiling_height_m || '?'} <span className="text-sm font-normal text-muted-foreground">m</span></span>
+              <Building className="w-5 h-5 text-gray-300 sm:text-muted-foreground mb-1" />
+              <span className="text-xl font-bold">{location.ceiling_height_m || '?'} <span className="text-sm font-normal text-gray-300 sm:text-muted-foreground">m</span></span>
             </CardContent>
           </Card>
         </div>
@@ -421,7 +436,7 @@ function LocationDetail({ location, onUpdate }: { location: Location, onUpdate: 
           </div>
 
           {showForm && (
-            <Card>
+            <Card className="bg-white/5 border-white/10 sm:bg-card sm:border-border text-white sm:text-foreground">
               <CardContent className="p-4">
                 <form onSubmit={addInteraction} className="space-y-4">
                   <div className="flex gap-4">
@@ -439,7 +454,7 @@ function LocationDetail({ location, onUpdate }: { location: Location, onUpdate: 
                     </Label>
                   </div>
                   <textarea 
-                    className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-gray-300 sm:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                     placeholder="Interaction details..."
                     value={newSummary}
                     onChange={e => setNewSummary(e.target.value)}
@@ -457,9 +472,9 @@ function LocationDetail({ location, onUpdate }: { location: Location, onUpdate: 
 
           <div className="space-y-4">
             {loading ? (
-              <p className="text-sm text-muted-foreground">Loading interactions...</p>
+              <p className="text-sm text-gray-300 sm:text-muted-foreground">Loading interactions...</p>
             ) : interactions.length === 0 ? (
-              <p className="text-sm text-muted-foreground italic">No interactions recorded yet.</p>
+              <p className="text-sm text-gray-300 sm:text-muted-foreground italic">No interactions recorded yet.</p>
             ) : (
               interactions.map(interaction => (
                 <div key={interaction.id} className="relative pl-6 pb-4 border-l last:pb-0 border-muted">
@@ -469,7 +484,7 @@ function LocationDetail({ location, onUpdate }: { location: Location, onUpdate: 
                     {interaction.type === 'email' && <Mail className="w-3 h-3 text-blue-500" />}
                     {interaction.type === 'visit' && <MapPin className="w-3 h-3 text-purple-500" />}
                     <span className="text-xs font-semibold uppercase">{interaction.type}</span>
-                    <span className="text-xs text-muted-foreground ml-auto">
+                    <span className="text-xs text-gray-300 sm:text-muted-foreground ml-auto">
                       {new Date(interaction.created_at).toLocaleDateString()}
                     </span>
                   </div>
@@ -477,7 +492,7 @@ function LocationDetail({ location, onUpdate }: { location: Location, onUpdate: 
                   {interaction.agents && (
                     <div className="mt-2 inline-flex items-center gap-2 text-xs bg-muted/50 px-2 py-1 rounded">
                       <span className="font-medium">{interaction.agents.name}</span>
-                      {interaction.agents.company && <span className="text-muted-foreground">({interaction.agents.company})</span>}
+                      {interaction.agents.company && <span className="text-gray-300 sm:text-muted-foreground">({interaction.agents.company})</span>}
                     </div>
                   )}
                 </div>
