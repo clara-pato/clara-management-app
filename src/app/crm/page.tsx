@@ -15,6 +15,7 @@ type Location = {
   status: string;
   notes: string | null;
   photos: string | null; // stored as json string
+  source?: string | null;
 };
 
 type Interaction = {
@@ -49,6 +50,7 @@ export default function CRMDashboard() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [cityFilter, setCityFilter] = useState("");
+  const [sourceFilter, setSourceFilter] = useState("");
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
 
   useEffect(() => {
@@ -70,7 +72,8 @@ export default function CRMDashboard() {
   const filteredLocations = locations.filter((loc) => {
     const matchesSearch = loc.address.toLowerCase().includes(search.toLowerCase());
     const matchesCity = cityFilter ? loc.city.toLowerCase() === cityFilter.toLowerCase() : true;
-    return matchesSearch && matchesCity;
+    const matchesSource = sourceFilter ? loc.source?.toLowerCase() === sourceFilter.toLowerCase() : true;
+    return matchesSearch && matchesCity && matchesSource;
   });
 
   return (
@@ -79,7 +82,7 @@ export default function CRMDashboard() {
       <div className={`flex flex-col w-full ${selectedLocation ? 'hidden md:flex md:w-1/2 lg:w-1/3' : ''} border-r border-[#f5f1e3]/20`}>
         <div className="p-4 border-b border-[#f5f1e3]/20 bg-[#080d1a]">
           <h1 className="text-2xl font-bold mb-4 font-mono tracking-wide">LOCATION CRM</h1>
-          <div className="flex gap-2">
+          <div className="flex gap-2 mb-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-2.5 w-4 h-4 text-[#f5f1e3]/50" />
               <input
@@ -101,6 +104,23 @@ export default function CRMDashboard() {
               ))}
             </select>
           </div>
+          <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+            <button
+              className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${sourceFilter === "" ? "bg-[#f5f1e3] text-[#0B162C]" : "bg-[#0B162C] text-[#f5f1e3]/70 border border-[#f5f1e3]/20 hover:bg-[#f5f1e3]/10"}`}
+              onClick={() => setSourceFilter("")}
+            >
+              All Sources
+            </button>
+            {['Kleinanzeigen', 'ImmoScout24', 'Immowelt', 'Website', 'Broker', 'Other'].map(src => (
+              <button
+                key={src}
+                className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${sourceFilter === src ? "bg-[#f5f1e3] text-[#0B162C]" : "bg-[#0B162C] text-[#f5f1e3]/70 border border-[#f5f1e3]/20 hover:bg-[#f5f1e3]/10"}`}
+                onClick={() => setSourceFilter(src)}
+              >
+                {src}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
@@ -120,9 +140,16 @@ export default function CRMDashboard() {
                 }`}
               >
                 <div className="flex justify-between items-start mb-2">
-                  <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${STATUS_COLORS[loc.status] || "bg-gray-500 text-white"}`}>
-                    {loc.status.replace("_", " ")}
-                  </span>
+                  <div className="flex gap-1 items-center">
+                    <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${STATUS_COLORS[loc.status] || "bg-gray-500 text-white"}`}>
+                      {loc.status.replace("_", " ")}
+                    </span>
+                    {loc.source && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#f5f1e3]/10 text-[#f5f1e3]/80 border border-[#f5f1e3]/20">
+                        {loc.source}
+                      </span>
+                    )}
+                  </div>
                   <span className="text-sm font-mono opacity-60">{loc.city}</span>
                 </div>
                 <h3 className="font-bold truncate mb-3">{loc.address}</h3>
@@ -161,6 +188,7 @@ function LocationDetail({ location, onClose, onUpdate }: { location: Location, o
   const [interactions, setInteractions] = useState<Interaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusUpdating, setStatusUpdating] = useState(false);
+  const [sourceUpdating, setSourceUpdating] = useState(false);
 
   // New Interaction form state
   const [showForm, setShowForm] = useState(false);
@@ -204,6 +232,21 @@ function LocationDetail({ location, onClose, onUpdate }: { location: Location, o
     setStatusUpdating(false);
   }
 
+  async function updateSource(newSource: string) {
+    setSourceUpdating(true);
+    const { data, error } = await supabase
+      .from("locations")
+      .update({ source: newSource || null })
+      .eq("id", location.id)
+      .select()
+      .single();
+    
+    if (!error && data) {
+      onUpdate(data);
+    }
+    setSourceUpdating(false);
+  }
+
   async function addInteraction(e: React.FormEvent) {
     e.preventDefault();
     if (!newSummary.trim()) return;
@@ -235,7 +278,7 @@ function LocationDetail({ location, onClose, onUpdate }: { location: Location, o
           <button onClick={onClose} className="md:hidden mb-4 text-sm flex items-center gap-1 opacity-70 hover:opacity-100">
             <X className="w-4 h-4" /> Close
           </button>
-          <div className="flex items-center gap-3 mb-2">
+          <div className="flex flex-wrap items-center gap-3 mb-2">
             <h2 className="text-2xl font-bold">{location.address}</h2>
             <select 
               value={location.status}
@@ -245,6 +288,17 @@ function LocationDetail({ location, onClose, onUpdate }: { location: Location, o
             >
               {Object.keys(STATUS_COLORS).map(s => (
                 <option key={s} value={s} className="bg-white text-black">{s.replace("_", " ")}</option>
+              ))}
+            </select>
+            <select
+              value={location.source || ""}
+              onChange={(e) => updateSource(e.target.value)}
+              disabled={sourceUpdating}
+              className={`text-xs font-bold px-2 py-1 rounded-full border border-[#f5f1e3]/20 bg-[#0B162C] text-[#f5f1e3] outline-none cursor-pointer ${sourceUpdating ? 'opacity-50' : ''}`}
+            >
+              <option value="">No Source</option>
+              {['Kleinanzeigen', 'ImmoScout24', 'Immowelt', 'Website', 'Broker', 'Other'].map(src => (
+                <option key={src} value={src}>{src}</option>
               ))}
             </select>
           </div>
