@@ -89,7 +89,7 @@ export default function CRMDashboard() {
   const uniqueSources = ['Kleinanzeigen', 'ImmoScout24', 'Immowelt', 'Website', 'Broker', 'Other'];
 
   return (
-    <div className="flex flex-col h-full bg-background text-foreground p-6 gap-6">
+    <div className="flex flex-col h-full bg-background text-foreground p-4 md:p-6 gap-4 md:gap-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Location CRM</h1>
@@ -138,8 +138,10 @@ export default function CRMDashboard() {
       </Card>
 
       {/* Locations Table */}
+      
       <Card className="flex-1 overflow-hidden flex flex-col">
-        <div className="overflow-auto flex-1">
+        {/* Desktop Table View */}
+        <div className="overflow-auto flex-1 hidden md:block">
           <Table>
             <TableHeader className="bg-muted/50 sticky top-0 z-10">
               <TableRow>
@@ -194,7 +196,40 @@ export default function CRMDashboard() {
             </TableBody>
           </Table>
         </div>
+
+        {/* Mobile List View */}
+        <div className="overflow-auto flex-1 md:hidden p-4 flex flex-col gap-4">
+          {loading ? (
+            <div className="h-24 flex items-center justify-center text-muted-foreground">Loading locations...</div>
+          ) : filteredLocations.length === 0 ? (
+            <div className="h-24 flex items-center justify-center text-muted-foreground">No locations found.</div>
+          ) : (
+            filteredLocations.map((loc) => (
+              <Card key={loc.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedLocation(loc)}>
+                <CardContent className="p-4 flex flex-col gap-2">
+                  <div className="flex justify-between items-start">
+                    <span className="font-medium">{loc.address}</span>
+                    <Badge variant="secondary" className={`${STATUS_COLORS[loc.status] || "bg-gray-500 text-white"}`}>
+                      {loc.status.replace("_", " ")}
+                    </Badge>
+                  </div>
+                  <div className="text-sm text-muted-foreground">{loc.city}</div>
+                  <div className="flex items-center gap-4 text-xs text-muted-foreground mt-2">
+                    <span className="flex items-center gap-1"><Ruler className="w-3 h-3" /> {loc.size_sqm} m2</span>
+                    <span className="flex items-center gap-1"><Euro className="w-3 h-3" /> {loc.asking_rent}</span>
+                  </div>
+                  {loc.source && (
+                    <div className="mt-2">
+                      <Badge variant="outline">{loc.source}</Badge>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </div>
       </Card>
+
 
       <Sheet open={!!selectedLocation} onOpenChange={(open) => !open && setSelectedLocation(null)}>
         <SheetContent className="w-[400px] sm:w-[540px] sm:max-w-none overflow-y-auto flex flex-col p-0">

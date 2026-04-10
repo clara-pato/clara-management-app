@@ -14,7 +14,7 @@ export default function Sidebar() {
   }
 
   return (
-    <nav className="w-16 md:w-64 border-r bg-background flex flex-col justify-between py-6 z-[100]">
+    <nav className="hidden md:flex md:w-64 border-r bg-background flex-col justify-between py-6 z-[100]">
       <div>
         <div className="px-4 md:px-6 mb-8 hidden md:block text-xl font-bold tracking-tight text-foreground">
           CLARA OS
