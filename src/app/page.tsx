@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 
 type SystemState = {
   mood: string;
@@ -52,15 +52,36 @@ function AnimatedEmoticon({ mood = "idle" }: { mood?: string }) {
 export default function Dashboard() {
   const [state, setState] = useState<SystemState>({
     mood: "idle",
-    message: "SYSTEM ONLINE",
+    message: "AWAITING ACTIVITY",
     current_task_id: "none",
     activities: ["AWAITING ACTIVITY"],
     lockedUntil: 0,
     logs: []
   });
+  const [isConnected, setIsConnected] = useState<boolean>(false);
+  const logsEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (logsEndRef.current) {
+      logsEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [state.logs]);
 
   useEffect(() => {
     const sse = new EventSource('/api/stream');
+    
+    sse.onopen = () => {
+      setIsConnected(true);
+    };
+
+    sse.onerror = () => {
+      setIsConnected(false);
+      setState(prev => ({
+        ...prev,
+        mood: "blocked",
+        message: "RECONNECTING...",
+      }));
+    };
     
     sse.onmessage = (event) => {
       try {
@@ -117,14 +138,15 @@ export default function Dashboard() {
     };
   }, []);
 
-  const mood = state?.mood || "idle";
-  const line1 = state?.message || "SYSTEM ONLINE";
+  const mood = !isConnected ? "blocked" : (state?.mood || "idle");
+  const line1 = !isConnected ? "RECONNECTING..." : (state?.message === "AWAITING ACTIVITY" && state.logs.length > 0 ? "SYSTEM ONLINE" : state?.message || "SYSTEM ONLINE");
   const line2 = state?.current_task_id && state.current_task_id !== "none" 
     ? `[TASK]: ${state.current_task_id}` 
     : "[TASK]: AWAITING ASSIGNMENT";
   
   let sysStatus = "[SYS]: ALL SYSTEMS GO";
-  if (mood === "blocked") sysStatus = "[SYS]: ERROR DETECTED";
+  if (!isConnected) sysStatus = "[SYS]: CONNECTION LOST";
+  else if (mood === "blocked") sysStatus = "[SYS]: ERROR DETECTED";
   else if (mood === "working") sysStatus = "[SYS]: PROCESSING...";
 
   return (
@@ -132,30 +154,50 @@ export default function Dashboard() {
       {/* CRT Scanline Overlay */}
       <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_4px,3px_100%] z-50 opacity-30"></div>
       
-      {/* Main Content Area - Emoticon centered with bottom bar offset */}
-      <div className="absolute inset-0 pb-44 flex items-center justify-center z-10">
+      {/* Main Content Area - Emoticon centered */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center z-10 pb-[30vh]">
         <AnimatedEmoticon mood={mood} />
       </div>
       
-      {/* Logs Terminal Overlay */}
-      <div className="absolute bottom-24 md:bottom-28 left-0 w-full px-4 md:px-6 z-20 h-32 md:h-40 overflow-hidden">
+      {/* Logs Terminal Overlay - Professional Auto-scrolling */}
+      <div className="absolute bottom-16 md:bottom-20 left-0 w-full px-4 md:px-6 z-20 h-[35vh] md:h-[40vh]">
         <div className="max-w-screen-2xl mx-auto h-full flex flex-col justify-end">
-          <div className="flex flex-col gap-1 text-[#f5f1e3]/70 text-[10px] sm:text-xs md:text-sm font-mono overflow-y-auto scrollbar-thin scrollbar-thumb-[#f5f1e3]/20 pb-2">
-            {state.logs.length === 0 && (
-              <div className="opacity-50">&gt; AWAITING TELEMETRY...</div>
-            )}
-            {state.logs.map((log, i) => (
-              <div key={i} className="whitespace-pre-wrap break-all leading-tight">
-                {log}
+          <div className="w-full h-full bg-[#050A15]/90 border border-[#f5f1e3]/20 rounded-md overflow-hidden flex flex-col shadow-[0_0_15px_rgba(0,0,0,0.8)] backdrop-blur-sm relative">
+            {/* Terminal Header */}
+            <div className="bg-[#0f1b33] border-b border-[#f5f1e3]/20 px-4 py-2 flex items-center justify-between text-xs text-[#f5f1e3]/60 select-none">
+              <div className="flex space-x-2">
+                <div className="w-2.5 h-2.5 rounded-full bg-red-500/80"></div>
+                <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/80"></div>
+                <div className="w-2.5 h-2.5 rounded-full bg-green-500/80"></div>
               </div>
-            ))}
+              <div className="flex items-center gap-2">
+                <span className={isConnected ? "text-green-400" : "text-red-500 animate-pulse"}>●</span>
+                clara-os // tail -f /var/log/system.log
+              </div>
+            </div>
+            
+            {/* Terminal Body */}
+            <div className="flex-1 overflow-y-auto p-4 scrollbar-thin scrollbar-thumb-[#f5f1e3]/20 text-[11px] sm:text-[12px] md:text-[14px] leading-tight md:leading-normal font-mono">
+              {!isConnected && (
+                <div className="text-red-400 opacity-80 mb-2 font-bold">&gt; FATAL: Connection to RPC server lost. Attempting to reconnect...</div>
+              )}
+              {isConnected && state.logs.length === 0 && (
+                <div className="text-[#f5f1e3]/50 mb-2">&gt; Connection established. Awaiting telemetry...</div>
+              )}
+              {state.logs.map((log, i) => (
+                <div key={i} className="whitespace-pre-wrap break-words mb-1 text-[#f5f1e3]/90 hover:bg-white/5 px-1 -mx-1 rounded transition-colors">
+                  <span className="text-green-400 mr-2 select-none">$</span>{log}
+                </div>
+              ))}
+              <div ref={logsEndRef} />
+            </div>
           </div>
         </div>
       </div>
       
       {/* Bottom Status Bar */}
-      <div className="absolute bottom-0 left-0 w-full bg-[#080d1a] border-t-2 border-[#f5f1e3]/20 p-4 md:p-6 z-20 shadow-[0_-10px_30px_rgba(0,0,0,0.8)]">
-        <div className="flex flex-col md:flex-row justify-between md:items-center max-w-screen-2xl mx-auto text-[20px] sm:text-[24px] md:text-[28px] font-bold drop-shadow-[0_0_5px_rgba(245,241,227,0.3)] gap-2 md:gap-6">
+      <div className="absolute bottom-0 left-0 w-full bg-[#080d1a] border-t-2 border-[#f5f1e3]/20 h-16 md:h-20 flex flex-col justify-center px-4 md:px-6 z-20 shadow-[0_-10px_30px_rgba(0,0,0,0.8)]">
+        <div className="flex flex-row justify-between items-center max-w-screen-2xl mx-auto text-[14px] sm:text-[18px] md:text-[24px] font-bold drop-shadow-[0_0_5px_rgba(245,241,227,0.3)] gap-2 md:gap-6 w-full">
           <div className="flex-1 truncate w-full flex items-center">
             <span className="text-[#f5f1e3]/60 mr-3 animate-pulse">&gt;</span>
             <span className={`truncate ${mood === "working" ? "text-blue-300" : ""}`}>{line1}</span>

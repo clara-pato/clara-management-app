@@ -1,14 +1,18 @@
 import { NextResponse } from 'next/server';
-import { execSync } from 'child_process';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
 import WebSocket from 'ws';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
-  // Ignore local .env tokens for OpenClaw connection, fetch the real one directly from the CLI
   let token;
   try {
-    token = execSync('openclaw config get gateway.auth.token').toString().trim();
+    const configPath = path.join(os.homedir(), '.openclaw', 'openclaw.json');
+    const configData = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    token = configData?.gateway?.auth?.token;
+    if (!token) throw new Error('No token found in config');
   } catch (err) {
     console.error('Failed to get OpenClaw token', err);
     return new Response('Internal Server Error: No token', { status: 500 });
@@ -38,7 +42,7 @@ export async function GET(request: Request) {
         role: 'operator',
         minProtocol: 3,
         maxProtocol: 3,
-        scopes: ['operator.admin', 'operator.read', 'operator.write'],
+        scopes: ['operator.read'],
         client: { id: 'openclaw-control-ui', version: '1.0', platform: 'webchat', mode: 'webchat' },
         auth: { token }
       }
@@ -51,9 +55,11 @@ export async function GET(request: Request) {
     const data = event.data.toString();
     try {
       const parsed = JSON.parse(data);
+      console.log('[SSE] WS msg:', JSON.stringify(parsed));
       
       // If we just successfully connected, start polling
       if (parsed.id === 'req_1' && (parsed.ok || !parsed.error)) {
+        console.log('[SSE] Auth successful, starting poll');
         pollInterval = setInterval(() => {
           if (ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({
@@ -70,11 +76,13 @@ export async function GET(request: Request) {
             }));
           }
         }, 2000);
+      } else if (parsed.id === 'req_1' && parsed.error) {
+        console.error('[SSE] Auth failed:', parsed.error);
       }
 
       writer.write(encoder.encode(`data: ${JSON.stringify(parsed)}\n\n`));
     } catch (e) {
-      // Not JSON or error
+      console.error('[SSE] JSON parse error on WS message:', e);
     }
   };
 
@@ -86,7 +94,7 @@ export async function GET(request: Request) {
   };
 
   ws.onerror = (err) => {
-    console.error('[SSE] OpenClaw WS error');
+    console.error('[SSE] OpenClaw WS error', err);
     clearInterval(pingInterval);
     if (pollInterval) clearInterval(pollInterval);
     writer.close().catch(() => {});

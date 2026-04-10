@@ -2,7 +2,16 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { Search, MapPin, Ruler, Building, Euro, Phone, Mail, FileText, ChevronRight, Filter, X, Plus } from "lucide-react";
+import { Search, MapPin, Ruler, Building, Euro, Phone, Mail, FileText, ChevronRight, Filter, X, Plus, ExternalLink } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Label } from "@/components/ui/label";
 
 type Location = {
   id: string;
@@ -37,11 +46,11 @@ type Agent = {
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  new: "bg-gray-500 text-white",
+  new: "bg-gray-500",
   contacting: "bg-yellow-500 text-yellow-950",
-  viewing: "bg-blue-500 text-blue-950",
-  offer_sent: "bg-purple-500 text-white",
-  rejected: "bg-red-500 text-white",
+  viewing: "bg-blue-500",
+  offer_sent: "bg-purple-500",
+  rejected: "bg-red-500",
   lease_signed: "bg-green-500 text-green-950",
 };
 
@@ -49,8 +58,8 @@ export default function CRMDashboard() {
   const [locations, setLocations] = useState<Location[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [cityFilter, setCityFilter] = useState("");
-  const [sourceFilter, setSourceFilter] = useState("");
+  const [cityFilter, setCityFilter] = useState("all");
+  const [sourceFilter, setSourceFilter] = useState("all");
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
 
   useEffect(() => {
@@ -71,126 +80,145 @@ export default function CRMDashboard() {
 
   const filteredLocations = locations.filter((loc) => {
     const matchesSearch = loc.address.toLowerCase().includes(search.toLowerCase());
-    const matchesCity = cityFilter ? loc.city.toLowerCase() === cityFilter.toLowerCase() : true;
-    const matchesSource = sourceFilter ? loc.source?.toLowerCase() === sourceFilter.toLowerCase() : true;
+    const matchesCity = cityFilter && cityFilter !== "all" ? loc.city.toLowerCase() === cityFilter.toLowerCase() : true;
+    const matchesSource = sourceFilter && sourceFilter !== "all" ? loc.source?.toLowerCase() === sourceFilter.toLowerCase() : true;
     return matchesSearch && matchesCity && matchesSource;
   });
 
-  return (
-    <div className="flex h-full bg-[#0B162C] text-[#f5f1e3]">
-      {/* List View */}
-      <div className={`flex flex-col w-full ${selectedLocation ? 'hidden md:flex md:w-1/2 lg:w-1/3' : ''} border-r border-[#f5f1e3]/20`}>
-        <div className="p-4 border-b border-[#f5f1e3]/20 bg-[#080d1a]">
-          <h1 className="text-2xl font-bold mb-4 font-mono tracking-wide">LOCATION CRM</h1>
-          <div className="flex gap-2 mb-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-2.5 w-4 h-4 text-[#f5f1e3]/50" />
-              <input
-                type="text"
-                placeholder="Search address..."
-                className="w-full bg-[#0B162C] border border-[#f5f1e3]/20 rounded p-2 pl-9 text-sm focus:outline-none focus:border-[#f5f1e3]/50"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
-            <select
-              className="bg-[#0B162C] border border-[#f5f1e3]/20 rounded p-2 text-sm focus:outline-none focus:border-[#f5f1e3]/50"
-              value={cityFilter}
-              onChange={(e) => setCityFilter(e.target.value)}
-            >
-              <option value="">All Cities</option>
-              {Array.from(new Set(locations.map(l => l.city))).map(city => (
-                <option key={city} value={city}>{city}</option>
-              ))}
-            </select>
-          </div>
-          <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-            <button
-              className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${sourceFilter === "" ? "bg-[#f5f1e3] text-[#0B162C]" : "bg-[#0B162C] text-[#f5f1e3]/70 border border-[#f5f1e3]/20 hover:bg-[#f5f1e3]/10"}`}
-              onClick={() => setSourceFilter("")}
-            >
-              All Sources
-            </button>
-            {['Kleinanzeigen', 'ImmoScout24', 'Immowelt', 'Website', 'Broker', 'Other'].map(src => (
-              <button
-                key={src}
-                className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${sourceFilter === src ? "bg-[#f5f1e3] text-[#0B162C]" : "bg-[#0B162C] text-[#f5f1e3]/70 border border-[#f5f1e3]/20 hover:bg-[#f5f1e3]/10"}`}
-                onClick={() => setSourceFilter(src)}
-              >
-                {src}
-              </button>
-            ))}
-          </div>
-        </div>
+  const uniqueCities = Array.from(new Set(locations.map(l => l.city).filter(Boolean)));
+  const uniqueSources = ['Kleinanzeigen', 'ImmoScout24', 'Immowelt', 'Website', 'Broker', 'Other'];
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          {loading ? (
-            <div className="text-center py-10 opacity-50 font-mono">LOADING LOCATIONS...</div>
-          ) : filteredLocations.length === 0 ? (
-            <div className="text-center py-10 opacity-50 font-mono">NO LOCATIONS FOUND</div>
-          ) : (
-            filteredLocations.map((loc) => (
-              <div
-                key={loc.id}
-                onClick={() => setSelectedLocation(loc)}
-                className={`p-4 rounded border cursor-pointer transition-colors ${
-                  selectedLocation?.id === loc.id
-                    ? "bg-[#f5f1e3]/10 border-[#f5f1e3]/50"
-                    : "bg-[#0B162C] border-[#f5f1e3]/10 hover:border-[#f5f1e3]/30"
-                }`}
-              >
-                <div className="flex justify-between items-start mb-2">
-                  <div className="flex gap-1 items-center">
-                    <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${STATUS_COLORS[loc.status] || "bg-gray-500 text-white"}`}>
-                      {loc.status.replace("_", " ")}
-                    </span>
-                    {loc.source && (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#f5f1e3]/10 text-[#f5f1e3]/80 border border-[#f5f1e3]/20">
-                        {loc.source}
-                      </span>
-                    )}
-                  </div>
-                  <span className="text-sm font-mono opacity-60">{loc.city}</span>
-                </div>
-                <h3 className="font-bold truncate mb-3">{loc.address}</h3>
-                <div className="grid grid-cols-2 gap-2 text-xs opacity-80">
-                  <div className="flex items-center gap-1"><Ruler className="w-3 h-3"/> {loc.size_sqm} m²</div>
-                  <div className="flex items-center gap-1"><Euro className="w-3 h-3"/> {loc.asking_rent}</div>
-                </div>
-              </div>
-            ))
-          )}
+  return (
+    <div className="flex flex-col h-full bg-background text-foreground p-6 gap-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Location CRM</h1>
+          <p className="text-muted-foreground mt-1">Manage and track potential property locations.</p>
         </div>
       </div>
 
-      {/* Detail View */}
-      {selectedLocation ? (
-        <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#0a1121]">
-          <LocationDetail 
-            location={selectedLocation} 
-            onClose={() => setSelectedLocation(null)}
-            onUpdate={(updated) => {
-              setLocations(prev => prev.map(l => l.id === updated.id ? updated : l));
-              setSelectedLocation(updated);
-            }}
-          />
+      {/* Filter Bar */}
+      <Card className="bg-card">
+        <CardContent className="p-4 flex flex-col md:flex-row gap-4 items-center">
+          <div className="relative flex-1 w-full">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground"  />
+            <Input
+              type="text"
+              placeholder="Search address..."
+              className="pl-9"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+             />
+          </div>
+
+          <Select value={cityFilter} onValueChange={(val) => setCityFilter(val || "")}>
+            <SelectTrigger className="w-full md:w-[180px]">
+              <SelectValue placeholder="All Cities"  />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Cities</SelectItem>
+              {uniqueCities.map(city => (
+                <SelectItem key={city} value={city}>{city}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={sourceFilter} onValueChange={(val) => setSourceFilter(val || "")}>
+            <SelectTrigger className="w-full md:w-[180px]">
+              <SelectValue placeholder="All Sources"  />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Sources</SelectItem>
+              {uniqueSources.map(src => (
+                <SelectItem key={src} value={src}>{src}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </CardContent>
+      </Card>
+
+      {/* Locations Table */}
+      <Card className="flex-1 overflow-hidden flex flex-col">
+        <div className="overflow-auto flex-1">
+          <Table>
+            <TableHeader className="bg-muted/50 sticky top-0 z-10">
+              <TableRow>
+                <TableHead>Address</TableHead>
+                <TableHead>City</TableHead>
+                <TableHead>Details</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Source</TableHead>
+                <TableHead className="text-right">Action</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                    Loading locations...
+                  </TableCell>
+                </TableRow>
+              ) : filteredLocations.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                    No locations found.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredLocations.map((loc) => (
+                  <TableRow key={loc.id} className="hover:bg-muted/50 cursor-pointer" onClick={() => setSelectedLocation(loc)}>
+                    <TableCell className="font-medium">{loc.address}</TableCell>
+                    <TableCell>{loc.city}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1"><Ruler className="w-3 h-3" /> {loc.size_sqm} m2</span>
+                        <span className="flex items-center gap-1"><Euro className="w-3 h-3" /> {loc.asking_rent}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className={`${STATUS_COLORS[loc.status] || "bg-gray-500 text-white"} hover:opacity-80`}>
+                        {loc.status.replace("_", " ")}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {loc.source ? <Badge variant="outline">{loc.source}</Badge> : <span className="text-muted-foreground text-xs">-</span>}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setSelectedLocation(loc); }}>
+                        View
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
         </div>
-      ) : (
-        <div className="hidden md:flex flex-1 items-center justify-center opacity-30 font-mono">
-          SELECT A LOCATION TO VIEW DETAILS
-        </div>
-      )}
+      </Card>
+
+      <Sheet open={!!selectedLocation} onOpenChange={(open) => !open && setSelectedLocation(null)}>
+        <SheetContent className="w-[400px] sm:w-[540px] sm:max-w-none overflow-y-auto flex flex-col p-0">
+          {selectedLocation && (
+            <LocationDetail
+              location={selectedLocation}
+              onUpdate={(updated) => {
+                setLocations(prev => prev.map(l => l.id === updated.id ? updated : l));
+                setSelectedLocation(updated);
+              }}
+             />
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
 
-function LocationDetail({ location, onClose, onUpdate }: { location: Location, onClose: () => void, onUpdate: (loc: Location) => void }) {
+function LocationDetail({ location, onUpdate }: { location: Location, onUpdate: (loc: Location) => void }) {
   const [interactions, setInteractions] = useState<Interaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusUpdating, setStatusUpdating] = useState(false);
   const [sourceUpdating, setSourceUpdating] = useState(false);
 
-  // New Interaction form state
   const [showForm, setShowForm] = useState(false);
   const [newSummary, setNewSummary] = useState("");
   const [newType, setNewType] = useState("call");
@@ -210,7 +238,7 @@ function LocationDetail({ location, onClose, onUpdate }: { location: Location, o
       `)
       .eq("location_id", location.id)
       .order("created_at", { ascending: false });
-    
+
     if (!error && data) {
       setInteractions(data as Interaction[]);
     }
@@ -225,7 +253,7 @@ function LocationDetail({ location, onClose, onUpdate }: { location: Location, o
       .eq("id", location.id)
       .select()
       .single();
-    
+
     if (!error && data) {
       onUpdate(data);
     }
@@ -233,14 +261,15 @@ function LocationDetail({ location, onClose, onUpdate }: { location: Location, o
   }
 
   async function updateSource(newSource: string) {
+    const val = newSource === "none" ? null : newSource;
     setSourceUpdating(true);
     const { data, error } = await supabase
       .from("locations")
-      .update({ source: newSource || null })
+      .update({ source: val })
       .eq("id", location.id)
       .select()
       .single();
-    
+
     if (!error && data) {
       onUpdate(data);
     }
@@ -271,138 +300,149 @@ function LocationDetail({ location, onClose, onUpdate }: { location: Location, o
   }
 
   return (
-    <div className="flex flex-col h-full w-full">
-      {/* Detail Header */}
-      <div className="p-6 border-b border-[#f5f1e3]/20 flex justify-between items-start bg-[#080d1a]">
-        <div>
-          <button onClick={onClose} className="md:hidden mb-4 text-sm flex items-center gap-1 opacity-70 hover:opacity-100">
-            <X className="w-4 h-4" /> Close
-          </button>
-          <div className="flex flex-wrap items-center gap-3 mb-2">
-            <h2 className="text-2xl font-bold">{location.address}</h2>
-            <select 
-              value={location.status}
-              onChange={(e) => updateStatus(e.target.value)}
-              disabled={statusUpdating}
-              className={`text-xs font-bold uppercase px-2 py-1 rounded-full border-none outline-none cursor-pointer ${STATUS_COLORS[location.status] || "bg-gray-500"} ${statusUpdating ? 'opacity-50' : ''}`}
-            >
-              {Object.keys(STATUS_COLORS).map(s => (
-                <option key={s} value={s} className="bg-white text-black">{s.replace("_", " ")}</option>
-              ))}
-            </select>
-            <select
-              value={location.source || ""}
-              onChange={(e) => updateSource(e.target.value)}
-              disabled={sourceUpdating}
-              className={`text-xs font-bold px-2 py-1 rounded-full border border-[#f5f1e3]/20 bg-[#0B162C] text-[#f5f1e3] outline-none cursor-pointer ${sourceUpdating ? 'opacity-50' : ''}`}
-            >
-              <option value="">No Source</option>
-              {['Kleinanzeigen', 'ImmoScout24', 'Immowelt', 'Website', 'Broker', 'Other'].map(src => (
-                <option key={src} value={src}>{src}</option>
-              ))}
-            </select>
-          </div>
-          <p className="text-[#f5f1e3]/60 flex items-center gap-2"><MapPin className="w-4 h-4" /> {location.city}</p>
+    <div className="flex flex-col h-full">
+      <SheetHeader className="p-6 border-b bg-muted/20">
+        <SheetTitle className="text-2xl">{location.address}</SheetTitle>
+        <div className="flex items-center gap-2 text-muted-foreground mt-2">
+          <MapPin className="w-4 h-4"  />
+          <span>{location.city}</span>
+          {location.listing_url && (
+            <a href={location.listing_url} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-primary hover:underline ml-auto">
+              Listing <ExternalLink className="w-3 h-3" />
+            </a>
+          )}
         </div>
-        {location.listing_url && (
-          <a href={location.listing_url} target="_blank" rel="noreferrer" className="text-blue-400 hover:underline text-sm border border-blue-400/30 px-3 py-1 rounded">
-            View Listing
-          </a>
-        )}
-      </div>
+      </SheetHeader>
 
-      <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6">
-        {/* Metrics Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-[#0B162C] border border-[#f5f1e3]/10 p-4 rounded flex flex-col gap-1">
-            <span className="text-[#f5f1e3]/50 text-xs font-mono uppercase">Size</span>
-            <span className="text-xl font-bold flex items-center gap-2"><Ruler className="w-5 h-5 opacity-50"/> {location.size_sqm} m²</span>
+      <div className="p-6 flex-1 overflow-y-auto space-y-6">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <Label>Status</Label>
+            <Select value={location.status} onValueChange={(val) => val && updateStatus(val)} disabled={statusUpdating}>
+              <SelectTrigger>
+                <SelectValue placeholder="Status"  />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.keys(STATUS_COLORS).map(s => (
+                  <SelectItem key={s} value={s}>{s.replace("_", " ").toUpperCase()}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-          <div className="bg-[#0B162C] border border-[#f5f1e3]/10 p-4 rounded flex flex-col gap-1">
-            <span className="text-[#f5f1e3]/50 text-xs font-mono uppercase">Rent</span>
-            <span className="text-xl font-bold flex items-center gap-2"><Euro className="w-5 h-5 opacity-50"/> {location.asking_rent}</span>
+          <div className="space-y-1.5">
+            <Label>Source</Label>
+            <Select value={location.source || "none"} onValueChange={(val) => val && updateSource(val)} disabled={sourceUpdating}>
+              <SelectTrigger>
+                <SelectValue placeholder="Source"  />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">None</SelectItem>
+                {['Kleinanzeigen', 'ImmoScout24', 'Immowelt', 'Website', 'Broker', 'Other'].map(src => (
+                  <SelectItem key={src} value={src}>{src}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-          <div className="bg-[#0B162C] border border-[#f5f1e3]/10 p-4 rounded flex flex-col gap-1">
-            <span className="text-[#f5f1e3]/50 text-xs font-mono uppercase">Ceiling</span>
-            <span className="text-xl font-bold flex items-center gap-2"><Building className="w-5 h-5 opacity-50"/> {location.ceiling_height_m || '?'} m</span>
-          </div>
+        </div>
+
+        <div className="grid grid-cols-3 gap-4">
+          <Card>
+            <CardContent className="p-4 flex flex-col gap-1 items-center justify-center text-center">
+              <Ruler className="w-5 h-5 text-muted-foreground mb-1" />
+              <span className="text-xl font-bold">{location.size_sqm} <span className="text-sm font-normal text-muted-foreground">m2</span></span>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4 flex flex-col gap-1 items-center justify-center text-center">
+              <Euro className="w-5 h-5 text-muted-foreground mb-1" />
+              <span className="text-xl font-bold">{location.asking_rent}</span>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4 flex flex-col gap-1 items-center justify-center text-center">
+              <Building className="w-5 h-5 text-muted-foreground mb-1" />
+              <span className="text-xl font-bold">{location.ceiling_height_m || '?'} <span className="text-sm font-normal text-muted-foreground">m</span></span>
+            </CardContent>
+          </Card>
         </div>
 
         {location.notes && (
-          <div className="bg-[#0B162C] border border-[#f5f1e3]/10 p-4 rounded">
-            <h3 className="text-xs font-mono uppercase text-[#f5f1e3]/50 mb-2">Notes</h3>
-            <p className="text-sm whitespace-pre-wrap">{location.notes}</p>
+          <div className="space-y-2">
+            <Label>Notes</Label>
+            <Card className="bg-muted/30">
+              <CardContent className="p-4 text-sm whitespace-pre-wrap">
+                {location.notes}
+              </CardContent>
+            </Card>
           </div>
         )}
 
-        {/* Interactions Section */}
-        <div className="mt-4 border-t border-[#f5f1e3]/10 pt-6">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-bold font-mono">INTERACTIONS</h3>
-            <button 
-              onClick={() => setShowForm(!showForm)}
-              className="flex items-center gap-1 text-sm bg-[#f5f1e3] text-[#0B162C] px-3 py-1 rounded font-bold hover:bg-[#f5f1e3]/90 transition"
-            >
-              {showForm ? <X className="w-4 h-4"/> : <Plus className="w-4 h-4"/>} 
-              {showForm ? "Cancel" : "Add Note"}
-            </button>
+        <div className="space-y-4 pt-4 border-t">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold tracking-tight text-lg">Interactions</h3>
+            <Button variant={showForm ? "secondary" : "default"} size="sm" onClick={() => setShowForm(!showForm)}>
+              {showForm ? <><X className="w-4 h-4 mr-1" /> Cancel</> : <><Plus className="w-4 h-4 mr-1"/> Add Note</>}
+            </Button>
           </div>
 
           {showForm && (
-            <form onSubmit={addInteraction} className="mb-6 bg-[#0B162C] border border-[#f5f1e3]/20 p-4 rounded flex flex-col gap-3">
-              <div className="flex gap-4">
-                <label className="flex items-center gap-2">
-                  <input type="radio" value="call" checked={newType==='call'} onChange={e => setNewType(e.target.value)} />
-                  <span className="text-sm">Call</span>
-                </label>
-                <label className="flex items-center gap-2">
-                  <input type="radio" value="email" checked={newType==='email'} onChange={e => setNewType(e.target.value)} />
-                  <span className="text-sm">Email</span>
-                </label>
-                <label className="flex items-center gap-2">
-                  <input type="radio" value="visit" checked={newType==='visit'} onChange={e => setNewType(e.target.value)} />
-                  <span className="text-sm">Visit</span>
-                </label>
-              </div>
-              <textarea 
-                className="w-full bg-[#080d1a] border border-[#f5f1e3]/20 rounded p-2 text-sm focus:outline-none focus:border-[#f5f1e3]/50 min-h-[80px]"
-                placeholder="Interaction details..."
-                value={newSummary}
-                onChange={e => setNewSummary(e.target.value)}
-                required
-              />
-              <button 
-                type="submit" 
-                disabled={submitting}
-                className="self-end bg-blue-500 text-white px-4 py-1.5 rounded text-sm font-bold disabled:opacity-50"
-              >
-                {submitting ? "Saving..." : "Save Interaction"}
-              </button>
-            </form>
+            <Card>
+              <CardContent className="p-4">
+                <form onSubmit={addInteraction} className="space-y-4">
+                  <div className="flex gap-4">
+                    <Label className="flex items-center gap-2 cursor-pointer">
+                      <input type="radio" value="call" checked={newType==='call'} onChange={e => setNewType(e.target.value)} className="accent-primary"  />
+                      Call
+                    </Label>
+                    <Label className="flex items-center gap-2 cursor-pointer">
+                      <input type="radio" value="email" checked={newType==='email'} onChange={e => setNewType(e.target.value)} className="accent-primary"  />
+                      Email
+                    </Label>
+                    <Label className="flex items-center gap-2 cursor-pointer">
+                      <input type="radio" value="visit" checked={newType==='visit'} onChange={e => setNewType(e.target.value)} className="accent-primary"  />
+                      Visit
+                    </Label>
+                  </div>
+                  <textarea 
+                    className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    placeholder="Interaction details..."
+                    value={newSummary}
+                    onChange={e => setNewSummary(e.target.value)}
+                    required
+                  />
+                  <div className="flex justify-end">
+                    <Button type="submit" disabled={submitting}>
+                      {submitting ? "Saving..." : "Save Interaction"}
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
           )}
 
           <div className="space-y-4">
             {loading ? (
-              <div className="opacity-50 text-sm font-mono">Loading interactions...</div>
+              <p className="text-sm text-muted-foreground">Loading interactions...</p>
             ) : interactions.length === 0 ? (
-              <div className="opacity-50 text-sm font-mono italic">No interactions recorded yet.</div>
+              <p className="text-sm text-muted-foreground italic">No interactions recorded yet.</p>
             ) : (
               interactions.map(interaction => (
-                <div key={interaction.id} className="border-l-2 border-[#f5f1e3]/20 pl-4 py-1">
+                <div key={interaction.id} className="relative pl-6 pb-4 border-l last:pb-0 border-muted">
+                  <div className="absolute left-[-5px] top-1 w-2 h-2 rounded-full bg-primary"  />
                   <div className="flex items-center gap-2 mb-1">
-                    {interaction.type === 'call' && <Phone className="w-3 h-3 text-green-400"/>}
-                    {interaction.type === 'email' && <Mail className="w-3 h-3 text-blue-400"/>}
-                    {interaction.type === 'visit' && <MapPin className="w-3 h-3 text-purple-400"/>}
-                    <span className="text-xs font-bold uppercase opacity-80">{interaction.type}</span>
-                    <span className="text-xs opacity-50 ml-auto font-mono">
+                    {interaction.type === 'call' && <Phone className="w-3 h-3 text-green-500" />}
+                    {interaction.type === 'email' && <Mail className="w-3 h-3 text-blue-500" />}
+                    {interaction.type === 'visit' && <MapPin className="w-3 h-3 text-purple-500" />}
+                    <span className="text-xs font-semibold uppercase">{interaction.type}</span>
+                    <span className="text-xs text-muted-foreground ml-auto">
                       {new Date(interaction.created_at).toLocaleDateString()}
                     </span>
                   </div>
                   <p className="text-sm">{interaction.summary}</p>
                   {interaction.agents && (
-                    <div className="mt-2 flex items-center gap-2 text-xs bg-[#0B162C] p-2 rounded w-fit border border-[#f5f1e3]/10">
-                      <span className="font-bold">{interaction.agents.name}</span>
-                      {interaction.agents.company && <span className="opacity-60">({interaction.agents.company})</span>}
+                    <div className="mt-2 inline-flex items-center gap-2 text-xs bg-muted/50 px-2 py-1 rounded">
+                      <span className="font-medium">{interaction.agents.name}</span>
+                      {interaction.agents.company && <span className="text-muted-foreground">({interaction.agents.company})</span>}
                     </div>
                   )}
                 </div>
