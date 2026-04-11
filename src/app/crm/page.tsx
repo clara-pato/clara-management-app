@@ -14,6 +14,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Label } from "@/components/ui/label";
 
+type LocationPhoto = {
+  id: string;
+  public_url: string;
+  is_primary: boolean;
+};
+
 type Location = {
   id: string;
   address: string;
@@ -27,6 +33,7 @@ type Location = {
   photos: string[] | null; // jsonb array of image urls
   source?: string | null;
   probability?: number | null;
+  location_photos?: LocationPhoto[];
 };
 
 type Interaction = {
@@ -72,7 +79,7 @@ export default function CRMDashboard() {
     setLoading(true);
     const { data, error } = await supabase
       .from("locations")
-      .select("*")
+      .select("*, location_photos(*)")
       .order("created_at", { ascending: false });
     if (!error && data) {
       setLocations(data);
@@ -174,12 +181,14 @@ export default function CRMDashboard() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredLocations.map((loc) => (
+                filteredLocations.map((loc) => {
+                  const primaryPhoto = loc.location_photos?.find(p => p.is_primary)?.public_url || loc.location_photos?.[0]?.public_url || (loc.photos && loc.photos.length > 0 ? (typeof loc.photos[0] === 'string' ? loc.photos[0] : (loc.photos[0] as any).url) : null);
+                  return (
                   <TableRow key={loc.id} className="hover:bg-muted/50 cursor-pointer" onClick={() => setSelectedLocation(loc)}>
                     <TableCell>
-                      {loc.photos && loc.photos.length > 0 ? (
+                      {primaryPhoto ? (
                         <div className="w-10 h-10 rounded-md overflow-hidden bg-muted">
-                          <img src={loc.photos[0]} alt="Thumbnail" className="w-full h-full object-cover" />
+                          <img src={primaryPhoto} alt="Thumbnail" className="w-full h-full object-cover" />
                         </div>
                       ) : (
                         <div className="w-10 h-10 rounded-md bg-muted flex items-center justify-center">
@@ -224,7 +233,8 @@ export default function CRMDashboard() {
                       </Button>
                     </TableCell>
                   </TableRow>
-                ))
+                  );
+                })
               )}
             </TableBody>
           </Table>
@@ -237,7 +247,9 @@ export default function CRMDashboard() {
           ) : filteredLocations.length === 0 ? (
             <div className="h-24 flex items-center justify-center text-muted-foreground">No locations found.</div>
           ) : (
-            filteredLocations.map((loc, index) => (
+            filteredLocations.map((loc, index) => {
+              const primaryPhoto = loc.location_photos?.find(p => p.is_primary)?.public_url || loc.location_photos?.[0]?.public_url || (loc.photos && loc.photos.length > 0 ? (typeof loc.photos[0] === 'string' ? loc.photos[0] : (loc.photos[0] as any).url) : null);
+              return (
               <motion.div
                 key={loc.id}
                 initial={{ opacity: 0, y: 20 }}
@@ -247,9 +259,9 @@ export default function CRMDashboard() {
                 <Card className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedLocation(loc)}>
                   <CardContent className="p-5 flex flex-col gap-3 min-h-[160px] justify-center">
                     <div className="flex gap-4">
-                      {loc.photos && loc.photos.length > 0 ? (
+                      {primaryPhoto ? (
                         <div className="w-16 h-16 shrink-0 rounded-md overflow-hidden bg-muted">
-                          <img src={loc.photos[0]} alt="Thumbnail" className="w-full h-full object-cover" />
+                          <img src={primaryPhoto} alt="Thumbnail" className="w-full h-full object-cover" />
                         </div>
                       ) : (
                         <div className="w-16 h-16 shrink-0 rounded-md bg-muted flex items-center justify-center">
@@ -290,7 +302,8 @@ export default function CRMDashboard() {
                   </CardContent>
                 </Card>
               </motion.div>
-            ))
+              );
+            })
           )}
         </div>
       </Card>
@@ -432,12 +445,15 @@ function LocationDetail({ location, onUpdate }: { location: Location, onUpdate: 
 
   return (
     <div className="flex flex-col h-full">
-      {location.photos && location.photos.length > 0 && (
+      {(() => {
+        const primaryPhoto = location.location_photos?.find(p => p.is_primary)?.public_url || location.location_photos?.[0]?.public_url || (location.photos && location.photos.length > 0 ? (typeof location.photos[0] === 'string' ? location.photos[0] : (location.photos[0] as any).url) : null);
+        return primaryPhoto ? (
         <div className="w-full h-48 sm:h-64 shrink-0 bg-muted overflow-hidden relative">
-          <img src={location.photos[0]} alt="Property" className="w-full h-full object-cover" />
+          <img src={primaryPhoto} alt="Property" className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
         </div>
-      )}
+        ) : null;
+      })()}
       <SheetHeader className="p-6 pr-16 border-b border-white/10 sm:border-b sm:bg-muted/20 text-white sm:text-foreground">
         <SheetTitle className="text-2xl">{location.address}</SheetTitle>
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-2 text-gray-300 sm:text-muted-foreground mt-3">
