@@ -24,8 +24,9 @@ type Location = {
   listing_url: string | null;
   status: string;
   notes: string | null;
-  photos: string | null; // stored as json string
+  photos: string[] | null; // jsonb array of image urls
   source?: string | null;
+  probability?: number | null;
 };
 
 type Interaction = {
@@ -146,10 +147,12 @@ export default function CRMDashboard() {
           <Table>
             <TableHeader className="bg-muted/50 sticky top-0 z-10">
               <TableRow>
+                <TableHead className="w-[60px]">Photo</TableHead>
                 <TableHead>Address</TableHead>
                 <TableHead>City</TableHead>
                 <TableHead>Details</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Match</TableHead>
                 <TableHead>Source</TableHead>
                 <TableHead className="text-right">Action</TableHead>
               </TableRow>
@@ -157,19 +160,30 @@ export default function CRMDashboard() {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                  <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
                     Loading locations...
                   </TableCell>
                 </TableRow>
               ) : filteredLocations.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                  <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
                     No locations found.
                   </TableCell>
                 </TableRow>
               ) : (
                 filteredLocations.map((loc) => (
                   <TableRow key={loc.id} className="hover:bg-muted/50 cursor-pointer" onClick={() => setSelectedLocation(loc)}>
+                    <TableCell>
+                      {loc.photos && loc.photos.length > 0 ? (
+                        <div className="w-10 h-10 rounded-md overflow-hidden bg-muted">
+                          <img src={loc.photos[0]} alt="Thumbnail" className="w-full h-full object-cover" />
+                        </div>
+                      ) : (
+                        <div className="w-10 h-10 rounded-md bg-muted flex items-center justify-center">
+                          <Building className="w-4 h-4 text-muted-foreground" />
+                        </div>
+                      )}
+                    </TableCell>
                     <TableCell className="font-medium">{loc.address}</TableCell>
                     <TableCell>{loc.city}</TableCell>
                     <TableCell>
@@ -182,6 +196,21 @@ export default function CRMDashboard() {
                       <Badge variant="secondary" className={`${STATUS_COLORS[loc.status] || "bg-gray-500 text-white"} hover:opacity-80`}>
                         {loc.status.replace("_", " ")}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {loc.probability != null ? (
+                        <div className="flex items-center gap-2">
+                          <div className="w-16 h-2 rounded-full bg-muted overflow-hidden">
+                            <div 
+                              className={`h-full ${loc.probability > 75 ? 'bg-green-500' : loc.probability > 40 ? 'bg-yellow-500' : 'bg-red-500'}`} 
+                              style={{ width: `${loc.probability}%` }}
+                            />
+                          </div>
+                          <span className="text-xs text-muted-foreground">{loc.probability}%</span>
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">-</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       {loc.source ? <Badge variant="outline">{loc.source}</Badge> : <span className="text-muted-foreground text-xs">-</span>}
@@ -214,14 +243,39 @@ export default function CRMDashboard() {
               >
                 <Card className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedLocation(loc)}>
                   <CardContent className="p-5 flex flex-col gap-3 min-h-[160px] justify-center">
-                    <div className="flex justify-between items-start">
-                      <span className="font-medium">{loc.address}</span>
-                      <Badge variant="secondary" className={`${STATUS_COLORS[loc.status] || "bg-gray-500 text-white"}`}>
-                        {loc.status.replace("_", " ")}
-                      </Badge>
+                    <div className="flex gap-4">
+                      {loc.photos && loc.photos.length > 0 ? (
+                        <div className="w-16 h-16 shrink-0 rounded-md overflow-hidden bg-muted">
+                          <img src={loc.photos[0]} alt="Thumbnail" className="w-full h-full object-cover" />
+                        </div>
+                      ) : (
+                        <div className="w-16 h-16 shrink-0 rounded-md bg-muted flex items-center justify-center">
+                          <Building className="w-6 h-6 text-muted-foreground" />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-start gap-2">
+                          <span className="font-medium truncate">{loc.address}</span>
+                          <Badge variant="secondary" className={`shrink-0 ${STATUS_COLORS[loc.status] || "bg-gray-500 text-white"}`}>
+                            {loc.status.replace("_", " ")}
+                          </Badge>
+                        </div>
+                        <div className="text-sm text-muted-foreground">{loc.city}</div>
+                        
+                        {loc.probability != null && (
+                          <div className="flex items-center gap-2 mt-2">
+                            <div className="w-24 h-1.5 rounded-full bg-muted overflow-hidden">
+                              <div 
+                                className={`h-full ${loc.probability > 75 ? 'bg-green-500' : loc.probability > 40 ? 'bg-yellow-500' : 'bg-red-500'}`} 
+                                style={{ width: `${loc.probability}%` }}
+                              />
+                            </div>
+                            <span className="text-[10px] text-muted-foreground">{loc.probability}% Match</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <div className="text-sm text-muted-foreground">{loc.city}</div>
-                    <div className="flex items-center gap-4 text-xs text-muted-foreground mt-2">
+                    <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground mt-1">
                       <span className="flex items-center gap-1"><Ruler className="w-3 h-3" /> {loc.size_sqm} m2</span>
                       <span className="flex items-center gap-1"><Euro className="w-3 h-3" /> {loc.asking_rent}</span>
                     </div>
@@ -276,6 +330,7 @@ function LocationDetail({ location, onUpdate }: { location: Location, onUpdate: 
   const [loading, setLoading] = useState(true);
   const [statusUpdating, setStatusUpdating] = useState(false);
   const [sourceUpdating, setSourceUpdating] = useState(false);
+  const [probUpdating, setProbUpdating] = useState(false);
 
   const [showForm, setShowForm] = useState(false);
   const [newSummary, setNewSummary] = useState("");
@@ -334,6 +389,21 @@ function LocationDetail({ location, onUpdate }: { location: Location, onUpdate: 
     setSourceUpdating(false);
   }
 
+  async function updateProbability(newProb: number) {
+    setProbUpdating(true);
+    const { data, error } = await supabase
+      .from("locations")
+      .update({ probability: newProb })
+      .eq("id", location.id)
+      .select()
+      .single();
+
+    if (!error && data) {
+      onUpdate(data);
+    }
+    setProbUpdating(false);
+  }
+
   async function addInteraction(e: React.FormEvent) {
     e.preventDefault();
     if (!newSummary.trim()) return;
@@ -359,6 +429,12 @@ function LocationDetail({ location, onUpdate }: { location: Location, onUpdate: 
 
   return (
     <div className="flex flex-col h-full">
+      {location.photos && location.photos.length > 0 && (
+        <div className="w-full h-48 sm:h-64 shrink-0 bg-muted overflow-hidden relative">
+          <img src={location.photos[0]} alt="Property" className="w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+        </div>
+      )}
       <SheetHeader className="p-6 pr-16 border-b border-white/10 sm:border-b sm:bg-muted/20 text-white sm:text-foreground">
         <SheetTitle className="text-2xl">{location.address}</SheetTitle>
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-2 text-gray-300 sm:text-muted-foreground mt-3">
@@ -407,6 +483,22 @@ function LocationDetail({ location, onUpdate }: { location: Location, onUpdate: 
                 ))}
               </SelectContent>
             </Select>
+          </div>
+          <div className="col-span-2 space-y-1.5 mt-2">
+            <div className="flex justify-between items-center">
+              <Label>Match Probability: {location.probability || 0}%</Label>
+              {probUpdating && <span className="text-xs text-muted-foreground">Saving...</span>}
+            </div>
+            <input 
+              type="range" 
+              min="0" 
+              max="100" 
+              step="5"
+              disabled={probUpdating}
+              value={location.probability || 0}
+              onChange={(e) => updateProbability(parseInt(e.target.value))}
+              className="w-full accent-primary"
+            />
           </div>
         </div>
 
