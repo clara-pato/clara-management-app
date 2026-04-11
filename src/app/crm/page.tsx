@@ -81,6 +81,9 @@ export default function CRMDashboard() {
   }
 
   const filteredLocations = locations.filter((loc) => {
+    if (loc.probability === 0 && loc.status !== "contacting" && loc.status !== "viewing" && loc.status !== "offer_sent" && loc.status !== "lease_signed") {
+      return false;
+    }
     const matchesSearch = loc.address.toLowerCase().includes(search.toLowerCase());
     const matchesCity = cityFilter && cityFilter !== "all" ? loc.city.toLowerCase() === cityFilter.toLowerCase() : true;
     const matchesSource = sourceFilter && sourceFilter !== "all" ? loc.source?.toLowerCase() === sourceFilter.toLowerCase() : true;

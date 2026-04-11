@@ -1,2 +1,0 @@
-ALTER TABLE locations
-ADD COLUMN probability INTEGER DEFAULT 0;
