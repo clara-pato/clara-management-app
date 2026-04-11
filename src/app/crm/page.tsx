@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Search, MapPin, Ruler, Building, Euro, Phone, Mail, FileText, ChevronRight, Filter, X, Plus, ExternalLink } from "lucide-react";
+import { motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -204,27 +205,34 @@ export default function CRMDashboard() {
           ) : filteredLocations.length === 0 ? (
             <div className="h-24 flex items-center justify-center text-muted-foreground">No locations found.</div>
           ) : (
-            filteredLocations.map((loc) => (
-              <Card key={loc.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedLocation(loc)}>
-                <CardContent className="p-5 flex flex-col gap-3 min-h-[140px] justify-center">
-                  <div className="flex justify-between items-start">
-                    <span className="font-medium">{loc.address}</span>
-                    <Badge variant="secondary" className={`${STATUS_COLORS[loc.status] || "bg-gray-500 text-white"}`}>
-                      {loc.status.replace("_", " ")}
-                    </Badge>
-                  </div>
-                  <div className="text-sm text-muted-foreground">{loc.city}</div>
-                  <div className="flex items-center gap-4 text-xs text-muted-foreground mt-2">
-                    <span className="flex items-center gap-1"><Ruler className="w-3 h-3" /> {loc.size_sqm} m2</span>
-                    <span className="flex items-center gap-1"><Euro className="w-3 h-3" /> {loc.asking_rent}</span>
-                  </div>
-                  {loc.source && (
-                    <div className="mt-2">
-                      <Badge variant="outline">{loc.source}</Badge>
+            filteredLocations.map((loc, index) => (
+              <motion.div
+                key={loc.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: index * 0.05 }}
+              >
+                <Card className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedLocation(loc)}>
+                  <CardContent className="p-5 flex flex-col gap-3 min-h-[160px] justify-center">
+                    <div className="flex justify-between items-start">
+                      <span className="font-medium">{loc.address}</span>
+                      <Badge variant="secondary" className={`${STATUS_COLORS[loc.status] || "bg-gray-500 text-white"}`}>
+                        {loc.status.replace("_", " ")}
+                      </Badge>
                     </div>
-                  )}
-                </CardContent>
-              </Card>
+                    <div className="text-sm text-muted-foreground">{loc.city}</div>
+                    <div className="flex items-center gap-4 text-xs text-muted-foreground mt-2">
+                      <span className="flex items-center gap-1"><Ruler className="w-3 h-3" /> {loc.size_sqm} m2</span>
+                      <span className="flex items-center gap-1"><Euro className="w-3 h-3" /> {loc.asking_rent}</span>
+                    </div>
+                    {loc.source && (
+                      <div className="mt-2">
+                        <Badge variant="outline">{loc.source}</Badge>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </motion.div>
             ))
           )}
         </div>
@@ -234,12 +242,12 @@ export default function CRMDashboard() {
       <Sheet open={!!selectedLocation} onOpenChange={(open) => !open && setSelectedLocation(null)}>
         <SheetContent 
           showCloseButton={false} 
-          className="w-full !max-w-full sm:max-w-none sm:w-[540px] h-[100dvh] sm:h-full overflow-y-auto flex flex-col p-0 border-0 bg-[#0B162C] sm:bg-background text-white sm:text-foreground"
+          className="w-full !max-w-full sm:max-w-none sm:w-[540px] h-[100dvh] max-h-[100dvh] sm:h-full flex flex-col p-0 border-0 bg-[#0B162C] sm:bg-background text-white sm:text-foreground overflow-hidden"
         >
-          {/* Custom Close Button for Mobile (Top Left) */}
-          <div className="sm:hidden sticky top-0 z-50 p-4 bg-[#0B162C]">
-            <Button variant="ghost" size="icon" onClick={() => setSelectedLocation(null)} className="text-white hover:bg-white/20 rounded-full">
-              <X className="w-8 h-8" />
+          {/* Custom Close Button for Mobile (Top Right) */}
+          <div className="sm:hidden absolute top-4 right-4 z-50">
+            <Button variant="ghost" size="icon" onClick={() => setSelectedLocation(null)} className="text-white bg-black/20 hover:bg-white/20 rounded-full w-10 h-10 flex items-center justify-center">
+              <X className="w-6 h-6" />
             </Button>
           </div>
           {/* Default Close Button for Desktop (Top Right) */}
@@ -351,15 +359,22 @@ function LocationDetail({ location, onUpdate }: { location: Location, onUpdate: 
 
   return (
     <div className="flex flex-col h-full">
-      <SheetHeader className="p-6 border-b border-white/10 sm:border-b sm:bg-muted/20 text-white sm:text-foreground mt-2 sm:mt-0">
+      <SheetHeader className="p-6 pr-16 border-b border-white/10 sm:border-b sm:bg-muted/20 text-white sm:text-foreground">
         <SheetTitle className="text-2xl">{location.address}</SheetTitle>
-        <div className="flex items-center gap-2 text-gray-300 sm:text-muted-foreground mt-2">
-          <MapPin className="w-4 h-4"  />
-          <span>{location.city}</span>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-2 text-gray-300 sm:text-muted-foreground mt-3">
+          <div className="flex items-center gap-2">
+            <MapPin className="w-4 h-4" />
+            <span>{location.city}</span>
+          </div>
           {location.listing_url && (
-            <a href={location.listing_url} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-primary hover:underline ml-auto">
-              Listing <ExternalLink className="w-3 h-3" />
-            </a>
+            <Button 
+              variant="default" 
+              size="sm" 
+              className="sm:ml-auto w-full sm:w-auto mt-2 sm:mt-0 font-medium flex items-center justify-center gap-2"
+              onClick={() => { if (location.listing_url) window.open(location.listing_url, '_blank', 'noopener,noreferrer'); }}
+            >
+              Go to Listing <ExternalLink className="w-4 h-4" />
+            </Button>
           )}
         </div>
       </SheetHeader>
